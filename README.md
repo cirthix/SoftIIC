@@ -4,6 +4,8 @@ A software IIC/I2C library aimed at the arduino/atmega platform. Master and mult
 SoftIIC is a class which enables easy communication to other IIC devices, as a master or slave, or in the presence of other masters.
 
 
+
+
 Master mode features:
 
   With a 16MHz core clock, 100KHz IIC master is supported.  Slower core clocks may also work.
@@ -15,6 +17,8 @@ Master mode features:
   Multi-byte reads and writes are supported.
   
   Clock stretching in master mode is not supported yet.
+
+
 
 
 Slave mode features:
@@ -31,6 +35,7 @@ Slave mode features:
   
   Clock stretching in slave mode is not supported/used.
   
+
 
 
 SoftIIC requires:
