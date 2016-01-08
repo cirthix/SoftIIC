@@ -25,3 +25,4 @@ Two I/O pins on the same port (for simultaneous sampling)
 
 SoftIIC currently is tested on:
 Atmega168
+
