@@ -17,6 +17,7 @@ Master mode features:
   Multi-byte reads and writes are supported.
   
   Clock stretching in master mode is not supported yet.
+  
 
 
 
@@ -34,6 +35,8 @@ Slave mode features:
   Multi-byte reads and writes are supported.
   
   Clock stretching in slave mode is not supported/used.
+  
+  Timeouts ensure system reliability.
   
 
 
