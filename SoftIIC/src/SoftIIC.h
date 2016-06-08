@@ -1,7 +1,7 @@
 /*
  * SoftIIC, a library for IIC communications on any pins.
- * 
  * Copyright (C) 2015 cirthix@gmail.com
+ * 
  * 
  * This file is part of SoftIIC.
  * 
@@ -21,12 +21,6 @@
  */
 
 // This library takes some tricks from https://github.com/todbot/SoftI2CMaster
-// VERY IMPORTANT NOTE: THIS LIBRARY RELIES ON THE WATCHDOG INTERRUPT SERVICE REQUEST.  THE WDT_ISR MUST CONTAIN THE FOLLOWING:
-//
-//		ISR(WDT_vect) {
-//			my_SoftIIC_object.WatchdogFired(); // Note: one for each SoftIIC library.
-//			// Add your other watchdog code here.
-//		}
 
 
 
@@ -35,56 +29,47 @@
 
 #include <Arduino.h>
 #include <inttypes.h>
-#include <avr/wdt.h>
-
-#ifndef NOP
-#define NOP __asm__ __volatile__ ("nop\n\t") // delay with a single clock of no-operate instruction
-#endif
-
-#ifndef ENABLED
-#define ENABLED 1
-#endif
+//#include <avr/wdt.h>
  
-#ifndef DISABLED
-#define DISABLED 0
+ // This is necessary for 100KHz host operation at less than 16MHz core clock
+#ifdef SOFTIIC_OPTIMIZE_FAST
+	#pragma GCC optimize("O3") 
 #endif
  
  
-#define SOFTIIC_INTERNAL_PULLUP_FEATURE DISABLED
-#define SOFTIIC_DEGBUG_MODE DISABLED
+// You can define this to gain a tiny bit of speed+space (may matter at 100KHz)
+//#define SOFTIIC_OPTIMIZE_NOPULLUPS
  
  
-// You can define this to be DISABLED to gain a tiny bit of speed (may matter at 100KHz)
-#ifndef SOFTIIC_INTERNAL_PULLUP_FEATURE
-#define SOFTIIC_INTERNAL_PULLUP_FEATURE ENABLED
-#endif
-
-// You can define this to ENABLED to turn on debug mode.
-#ifndef SOFTIIC_DEGBUG_MODE
-#define SOFTIIC_DEGBUG_MODE DISABLED
-#endif
-// Note that during debugging, timer2 is used, digitalwrite2 library is pulled in, and the pins DEBUGPIN_A and DEBUGPIN_B are used.
+// Define this if using the extra debug pins for timing debug/analysis
+// Note that during debugging, timer2 is used, digitalwrite2 library is pulled in, and the pins SOFTIIC_DEBUGPIN_A and SOFTIIC_DEBUGPIN_B are used.
+//#define SOFTIIC_DEGBUG_MODE 
+  
 
 // You can externally override the debug pins when using debug mode.
-#if SOFTIIC_DEGBUG_MODE==ENABLED 
- 
-	#ifndef DEBUGPIN_A
-	#define DEBUGPIN_A 14		// This debug-output pin is used to verify timing relationships between the code and physical sda/scl pins.
+#ifdef SOFTIIC_DEGBUG_MODE 
+	#ifndef SOFTIIC_DEBUGPIN_A
+		#define SOFTIIC_DEBUGPIN_A 14		// This debug-output pin is used to verify timing relationships between the code and physical sda/scl pins.
 	#endif 
-	#ifndef DEBUGPIN_B
-	#define DEBUGPIN_B 15		// This debug-output pin is used to verify timing relationships between the code and physical sda/scl pins.
+	#ifndef SOFTIIC_DEBUGPIN_B
+		#define SOFTIIC_DEBUGPIN_B 15		// This debug-output pin is used to verify timing relationships between the code and physical sda/scl pins.
 	#endif 
 #endif
  
-#ifdef DEBUGPIN_A
-#include "arduino2.h"  // include the fast I/O 2 functions
+#ifdef SOFTIIC_DEBUGPIN_A
+	#include "arduino2.h"  // include the fast I/O 2 functions
 #endif
 
-#ifdef DEBUGPIN_B
-#include "arduino2.h"  // include the fast I/O 2 functions
+#ifdef SOFTIIC_DEBUGPIN_B
+	#include "arduino2.h"  // include the fast I/O 2 functions
+#endif
+ 
+ 
+#ifndef NOP
+	#define NOP __asm__ __volatile__ ("nop\n\t") // delay with a single clock of no-operate instruction
 #endif
 
-
+ 
 #define IIC_SPEED_DEFAULT 100 // Units = KHz
 #define CHIP_SIZE 256  // For now, only support 8bit IIC communications.  10bit addresses do exist, but this is not yet supported
  
@@ -142,10 +127,10 @@ SoftIIC();
 	uint8_t MasterCheckExists(uint8_t device_address);
 	
 	// Master functions for doing multibyte transfers.  These should be significantly faster for doing things like programming an eeprom.
-	uint8_t MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes);
-	uint8_t MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes, uint8_t isverify);
-	uint8_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes);
-	uint8_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes, uint8_t writeverify );
+	uint8_t MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes);
+	uint8_t MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t isverify);
+	uint8_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes);
+	uint8_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t writeverify );
 	
 						// Lower level master functions do all of the legwork of handling the iic master protocol.  
  	uint8_t MasterBusRestart();
@@ -175,7 +160,7 @@ SoftIIC();
 	
 // Service one slave request.  Call this function by providing function pointers to functions which will provide the data necessary to handle the transaction.  See example code.
 // Returns: number of bytes successfully handled.
-	uint8_t SlaveHandleTransaction(
+	uint16_t SlaveHandleTransaction(
 				uint8_t (*fp_respond_to_address)(uint8_t chip_address),
 				uint8_t (*fp_respond_to_command)(uint8_t chip_address),
 				uint8_t (*fp_respond_to_data)(uint8_t chip_address),
