@@ -21,13 +21,8 @@
  */
 
 // This library takes some tricks from https://github.com/todbot/SoftI2CMaster
-// VERY IMPORTANT NOTE: THIS LIBRARY RELIES ON THE WATCHDOG INTERRUPT SERVICE REQUEST.  THE WDT_ISR MUST CONTAIN THE FOLLOWING:
-//
-//		ISR(WDT_vect) {
-//			my_SoftIIC_object.WatchdogFired(); // Note: one for each SoftIIC library.
-//			// Add your other watchdog code here.
-//		}
 
+ 
 #include <SoftIIC.h>
 
 			
@@ -132,7 +127,7 @@ uint8_t SoftIIC::MasterWriteByte(uint8_t device_address, uint8_t register_addres
     SoftIIC::MasterStop();  
   
   if (writeverify != 0) {
-  delayMicroseconds(10000); // Typical write time for iic eeprom is 5ms.  Give the target chip some time to write the data.
+  delayMicroseconds(10000); // Typical write time for iic eeprom is 5-10ms.  Give the target chip some time to write the data.
     uint8_t readback_value;
     readback_value = SoftIIC::MasterReadByte(device_address, register_address);
     if (readback_value == data) {      return RETVAL_SUCCESS;    }
@@ -151,16 +146,16 @@ uint8_t SoftIIC::MasterWriteByte(uint8_t device_address, uint8_t register_addres
 }
 
 
-uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes){
+uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes){
 	return SoftIIC::MasterReadPage(device_address, register_address, bytes, number_bytes, 0);
 }
 
-uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes, uint8_t isverify){
+uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t isverify){
 	uint8_t tretval;
+	uint16_t k=0;
 	tretval=SoftIIC::MasterStart((device_address<<1)| IIC_WRITE);  		if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
 	tretval=SoftIIC::MasterWrite(register_address);					  	if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
 	tretval=SoftIIC::MasterRestart((device_address<<1)| IIC_READ);  		if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
-	uint8_t k=0;
 	while( k<number_bytes-1){
 		uint8_t tmp=SoftIIC::MasterRead(false);
 	if(isverify) {if(tmp!=bytes[k]) {return RETVAL_PROTOCOL_FAILURE;}}
@@ -172,17 +167,18 @@ uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address
 	return RETVAL_SUCCESS;	
 }
 
-	uint8_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes){
+	uint8_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes){
 		return SoftIIC::MasterWritePage(device_address, register_address, bytes, number_bytes, 0);
 	}
 	
-uint8_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint8_t number_bytes, uint8_t writeverify ){
+uint8_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t writeverify ){
+	uint16_t k=0;
 	if ((SoftIIC::MasterStart((device_address<<1)| IIC_WRITE))) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
 	if (SoftIIC::MasterWrite(register_address)) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}	
-	uint8_t k=0;
 	while( k<number_bytes){
 		if (SoftIIC::MasterWrite(bytes[k])) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
 		k++;
+		Serial.print(".");
 	}
     SoftIIC::MasterStop();
 	if (writeverify == 0) {return RETVAL_SUCCESS;	}
@@ -213,10 +209,10 @@ uint8_t SoftIIC::MasterDumpAll() {
 
 uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {	
 	uint8_t number_of_registers=0;
-	uint8_t register_address;
+	uint16_t register_address;
 	uint8_t value;
 	Serial.print(F("DumpRegs 0x")); 	SoftIIC::fastprinthexbyte(addressRW);	Serial.print(":"); Serial.flush();
-	for (register_address = 0; register_address < CHIP_SIZE-1; register_address++ )      {
+	for (register_address = 0; register_address < CHIP_SIZE; register_address++ )      {
 		uint8_t readretval = SoftIIC::MasterReadByte(addressRW, register_address, &value);
 		if(readretval!=RETVAL_SUCCESS) {Serial.print(F("-- "));}
 		else {
@@ -251,8 +247,8 @@ uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {
 }
 
  uint8_t SoftIIC::MasterStart(uint8_t addressRW) {
-	 SoftIIC::ConfigureTimer1Settings();
-	 SoftIIC::wait_until_bus_is_idle();
+	SoftIIC::ConfigureTimer1Settings();
+	SoftIIC::wait_until_bus_is_idle();
 	SoftIIC::data_pull_down();
 	SoftIIC::TransferTimerConfigureHalfclock();
 	SoftIIC::TimerReset();
@@ -352,9 +348,9 @@ uint8_t SoftIIC::wait_until_bus_is_idle(){
 		SoftIIC::TransferTimerConfigureHalfclock();
 		SoftIIC::TimerReset();
 		SoftIIC::TimerClearMatch(); 
-		// Here, we expect no other masters on the bus, but we don't know what state we may have entered this function on (maybe previous one chrashed?)
+		// Here, we expect no other masters on the bus, but we don't know what state we may have entered this function on (maybe previous one crashed?)
 		// Let's wait a few clocks to let slaves timeout if that is the case.
-		uint8_t num_half_clocks_remaining=20;	
+		uint8_t num_half_clocks_remaining=32;	
 		while(num_half_clocks_remaining>0){	
 			while((SoftIIC::TimerElapsed())==0) {		
 				SoftIIC::bus_read();
@@ -439,6 +435,7 @@ uint16_t SoftIIC::Snoop(uint16_t to_snoop){
 		}	
 	}
 	Serial.print(F("\nIIC snooping done\n")); Serial.flush();
+	SoftIIC::RestoreTimer1Settings();
 return activity_snooped;    
 }
   
@@ -457,11 +454,12 @@ return activity_snooped;
 		debug_pin_A_toggle();
 		if(SoftIIC::StateStop()){breakloop=1;}
 	}
+	SoftIIC::RestoreTimer1Settings();
   }
     
   
 	
-uint8_t SoftIIC::SlaveHandleTransaction(
+uint16_t SoftIIC::SlaveHandleTransaction(
 	uint8_t (*fp_respond_to_address)(uint8_t chip_address),
 	uint8_t (*fp_respond_to_command)(uint8_t chip_address),
 	uint8_t (*fp_respond_to_data)(uint8_t chip_address),
@@ -476,9 +474,8 @@ uint8_t SoftIIC::SlaveHandleTransaction(
 	SoftIIC::TransferTimerConfigureTransfer();
 	SoftIIC::TimerClearMatch(); 
 	uint8_t tretval;
-	uint8_t number_of_successful_bytes=0; 
-	wdt_disable();
-	noInterrupts();
+	uint16_t number_of_successful_bytes=0; 
+//	wdt_disable();
 	
 beginning:  // We wait for an address and decide whether or not to ack it.
 //	wdt_reset();			
@@ -566,7 +563,7 @@ done_with_iic_transaction:	// always exit with a clean interface
 	SoftIIC::data_release();
 //	SoftIIC::debug_pin_B_low();
 	SoftIIC::RestoreTimer1Settings();
-	wdt_disable();
+//	wdt_disable();
 	return number_of_successful_bytes;
 }
 
@@ -821,8 +818,8 @@ spin_again_for_clock_fall:
 	}
 	
   void SoftIIC::clock_release(){
-		*_sclDirReg   &= _sclBitMaskINVERTED;  
-		#if SOFTIIC_INTERNAL_PULLUP_FEATURE==ENABLED 
+		*_sclDirReg   &= _sclBitMaskINVERTED;  		
+		#ifndef SOFTIIC_OPTIMIZE_NOPULLUPS
 			if(usePullups) { *_sclPortReg  |=  _sclBitMask; }
 		#endif
 	}
@@ -834,7 +831,7 @@ spin_again_for_clock_fall:
 	
      void SoftIIC::data_release(){
 		*_sdaDirReg   &= _sdaBitMaskINVERTED;  		
-		#if SOFTIIC_INTERNAL_PULLUP_FEATURE==ENABLED 
+		#ifndef SOFTIIC_OPTIMIZE_NOPULLUPS
 			if(usePullups) { *_sdaPortReg  |=  _sdaBitMask; }
 		#endif
 	}
@@ -939,8 +936,6 @@ spin_again_for_clock_fall:
 		// Restore pin settings
 		pinMode(PIN_SCL, INPUT);
 		pinMode(PIN_SDA, INPUT);
-		SoftIIC::RestoreTimer1Settings();
-		interrupts();	 
 	}
 	
 	
@@ -973,11 +968,9 @@ spin_again_for_clock_fall:
 		// Just don't deal with different ports, results WILL fail sometimes due to incorrect start/stop conditions.
 	if(_sclPortReg != _sdaPortReg){Serial.println(F("Warning: IIC port mismatch!")); while(1);}
 		
-		noInterrupts();
+		noInterrupts();		
 		
-		
-		SoftIIC::SetSpeed(speed);
-	
+		SoftIIC::SetSpeed(speed);	
 		
 		SoftIIC::clock_release();
 		SoftIIC::data_release();
@@ -1015,7 +1008,7 @@ spin_again_for_clock_fall:
 	}
 	
 	void SoftIIC::PrintSpeed(){
-	#if SOFTIIC_DEGBUG_MODE==ENABLED
+	#ifdef SOFTIIC_DEGBUG_MODE
 		SoftIIC::ConfigureTimer1Settings();
 		uint16_t timer1_tick_rate=SoftIIC::GetFrequencyOfTimer1Divider(SoftIIC::GetCurrentTimer1Divider());
 		Serial.print(F("CPU speed (in KHz):"));  Serial.println(F_CPU/1000);  Serial.flush();
@@ -1101,12 +1094,14 @@ uint16_t SoftIIC::GetRatioOfTimer2Divider(uint8_t divider){ // returns clocks pe
 }
 
 	void  SoftIIC::RestoreTimer1Settings(){
+		TCCR1A  = 0x00;
 		OCR1A	= p_OCR1A;
 		OCR1B	= p_OCR1B;
 		TIMSK1	= p_TIMSK1;   
 		TIFR1	= p_TIFR1;  			
 		TCCR1A	= p_TCCR1A;
 		TCCR1B	= p_TCCR1B;
+		interrupts();
 	}
 	void  SoftIIC::SaveTimer1Settings(){
 		p_OCR1A		= OCR1A;
@@ -1117,7 +1112,9 @@ uint16_t SoftIIC::GetRatioOfTimer2Divider(uint8_t divider){ // returns clocks pe
 		p_TCCR1B	= TCCR1B;		
 	}
 	void  SoftIIC::ConfigureTimer1Settings(){
+		noInterrupts();
 		SoftIIC::SaveTimer1Settings();
+		TCCR1A  = 0x00;
 		OCR1A 	= my_OCR1A 	;
 		OCR1B 	= my_OCR1B 	;
 		TIMSK1 	= my_TIMSK1 ;
@@ -1200,7 +1197,7 @@ uint16_t SoftIIC::GetRatioOfTimer2Divider(uint8_t divider){ // returns clocks pe
 	
 	// NOTE: this debugging feature uses timer2.
 	  void SoftIIC::functimer_start(){
-#if SOFTIIC_DEGBUG_MODE==ENABLED
+#ifdef SOFTIIC_DEGBUG_MODE
   		TCCR2A= 0; // turn off PWM
 		TCCR2B = 0x00; // set clock scaler to 0
 		OCR2A = 0;
@@ -1212,7 +1209,7 @@ uint16_t SoftIIC::GetRatioOfTimer2Divider(uint8_t divider){ // returns clocks pe
 #endif
 }
     void SoftIIC::functimer_stop(){
-#if SOFTIIC_DEGBUG_MODE==ENABLED
+#ifdef SOFTIIC_DEGBUG_MODE
 		uint16_t mytimer=TCNT2;
 		mytimer=(mytimer*SoftIIC::GetRatioOfTimer2Divider(SoftIIC::GetCurrentTimer2Divider()))-1;
 		Serial.print(F("K:\t")); Serial.println(mytimer,DEC); Serial.flush();
