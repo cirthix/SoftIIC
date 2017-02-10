@@ -12,8 +12,8 @@
  * consent.
  * 
  * This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * 
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details. You should have received a copy of the GNU
  * General Public License along with This software. If not, see <http://www.gnu.org/licenses/>.
  * 
@@ -23,52 +23,53 @@
 // This library takes some tricks from https://github.com/todbot/SoftI2CMaster
 
  
+ 
 #include <SoftIIC.h>
 
 			
-//const 		uint8_t 	IIC_STATE_TIMEOUT_SHIFT  		=	7                                                         ;
-//const 		uint8_t 	IIC_STATE_TIMEOUT		  		=	0b00000001<<IIC_STATE_TIMEOUT_SHIFT	                      ;
-const 		uint8_t 	IIC_STATE_MASK_SCL_SHIFT  		=	4                                                         ;
-const 		uint8_t 	IIC_STATE_MASK_SDA_SHIFT  		=	0                                                         ;
-const 		uint8_t 	IIC_STATE_MASK_SCL_CURRENT  	=	0b00000001<<IIC_STATE_MASK_SCL_SHIFT                      ;
-const 		uint8_t 	IIC_STATE_MASK_SDA_CURRENT  	=	0b00000001<<IIC_STATE_MASK_SDA_SHIFT                      ;
-const 		uint8_t 	IIC_STATE_MASK_SCL_PREVIOUS 	=	IIC_STATE_MASK_SCL_CURRENT<<1                             ;
-const 		uint8_t 	IIC_STATE_MASK_SDA_PREVIOUS 	=	IIC_STATE_MASK_SDA_CURRENT<<1                             ;
-const 		uint8_t 	IIC_STATE_MASK_SCL				=	IIC_STATE_MASK_SCL_CURRENT|IIC_STATE_MASK_SCL_PREVIOUS    ;
-const 		uint8_t 	IIC_STATE_MASK_SDA				=	IIC_STATE_MASK_SDA_CURRENT|IIC_STATE_MASK_SDA_PREVIOUS    ;
-const 		uint8_t 	IIC_STATE_MASK_CURRENT      	=	IIC_STATE_MASK_SCL_CURRENT|IIC_STATE_MASK_SDA_CURRENT     ;
-const 		uint8_t 	IIC_STATE_MASK_PREVIOUS     	=	IIC_STATE_MASK_SCL_PREVIOUS|IIC_STATE_MASK_SDA_PREVIOUS   ;
+//static const 		uint8_t 	IIC_STATE_TIMEOUT_SHIFT  		=	7                                                         ;
+//static const 		uint8_t 	IIC_STATE_TIMEOUT		  		=	0b00000001<<IIC_STATE_TIMEOUT_SHIFT	                      ;
+static const 		uint8_t 	IIC_STATE_MASK_SCL_SHIFT  		=	4                                                         ;
+static const 		uint8_t 	IIC_STATE_MASK_SDA_SHIFT  		=	0                                                         ;
+static const 		uint8_t 	IIC_STATE_MASK_SCL_CURRENT  	=	0b00000001<<IIC_STATE_MASK_SCL_SHIFT                      ;
+static const 		uint8_t 	IIC_STATE_MASK_SDA_CURRENT  	=	0b00000001<<IIC_STATE_MASK_SDA_SHIFT                      ;
+static const 		uint8_t 	IIC_STATE_MASK_SCL_PREVIOUS 	=	IIC_STATE_MASK_SCL_CURRENT<<1                             ;
+static const 		uint8_t 	IIC_STATE_MASK_SDA_PREVIOUS 	=	IIC_STATE_MASK_SDA_CURRENT<<1                             ;
+static const 		uint8_t 	IIC_STATE_MASK_SCL				=	IIC_STATE_MASK_SCL_CURRENT|IIC_STATE_MASK_SCL_PREVIOUS    ;
+static const 		uint8_t 	IIC_STATE_MASK_SDA				=	IIC_STATE_MASK_SDA_CURRENT|IIC_STATE_MASK_SDA_PREVIOUS    ;
+static const 		uint8_t 	IIC_STATE_MASK_CURRENT      	=	IIC_STATE_MASK_SCL_CURRENT|IIC_STATE_MASK_SDA_CURRENT     ;
+static const 		uint8_t 	IIC_STATE_MASK_PREVIOUS     	=	IIC_STATE_MASK_SCL_PREVIOUS|IIC_STATE_MASK_SDA_PREVIOUS   ;
 
 
-const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_ZERO	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_ROSE	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_FELL	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_HIGH	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_ZERO	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_ROSE	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_FELL	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_HIGH	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_ZERO	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_ROSE	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_FELL	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_HIGH	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_ZERO	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_ROSE	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_FELL	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
-const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_HIGH	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_ZERO	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_ROSE	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_FELL	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ZERO_DATA_HIGH	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_ZERO	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_ROSE	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_FELL	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_ROSE_DATA_HIGH	=	(0x00&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_ZERO	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_ROSE	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_FELL	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_FELL_DATA_HIGH	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0x00&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_ZERO	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_ROSE	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0x00&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_FELL	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0x00&IIC_STATE_MASK_SDA_CURRENT) ;
+static const 		uint8_t 	IIC_STATE_CLOCK_HIGH_DATA_HIGH	=	(0xFF&IIC_STATE_MASK_SCL_PREVIOUS)|(0xFF&IIC_STATE_MASK_SCL_CURRENT)|(0xFF&IIC_STATE_MASK_SDA_PREVIOUS)|(0xFF&IIC_STATE_MASK_SDA_CURRENT) ;
 
 			// Using these values helps us optimize by not performing unnecessary conversions and checks
-const 		uint8_t		IIC_ZERO		=	0x00;		// Rising edge of clock with data = 0
-const 		uint8_t		IIC_ONE			=	IIC_STATE_MASK_SDA_CURRENT;		// Rising edge of clock with data = 1
-const 		uint8_t		IIC_CLOCKFALL	=	IIC_STATE_MASK_SCL_PREVIOUS;		// Falling edge of clock
-const 		uint8_t		IIC_START		=	IIC_STATE_CLOCK_HIGH_DATA_FELL;		// Data going low while clock remains high
-const 		uint8_t		IIC_STOP		=	IIC_STATE_CLOCK_HIGH_DATA_ROSE;		// Data going high while clock remains high
-const 		uint8_t		IIC_TIMEOUT		=	0xFF;		// ANY STATIC CONDITION THAT EXCEEDS THE TIMEOUT TIME	
+static const 		uint8_t		IIC_ZERO		=	0x00;		// Rising edge of clock with data = 0
+static const 		uint8_t		IIC_ONE			=	IIC_STATE_MASK_SDA_CURRENT;		// Rising edge of clock with data = 1
+static const 		uint8_t		IIC_CLOCKFALL	=	IIC_STATE_MASK_SCL_PREVIOUS;		// Falling edge of clock
+static const 		uint8_t		IIC_START		=	IIC_STATE_CLOCK_HIGH_DATA_FELL;		// Data going low while clock remains high
+static const 		uint8_t		IIC_STOP		=	IIC_STATE_CLOCK_HIGH_DATA_ROSE;		// Data going high while clock remains high
+static const 		uint8_t		IIC_TIMEOUT		=	0xFF;		// ANY STATIC CONDITION THAT EXCEEDS THE TIMEOUT TIME	
 
 				
-const		uint8_t 	IIC_RWMASK 		= 	0x01; 	//Byte to AND with address for read/write bit 
-const		uint8_t 	IIC_READ 		= 	0x01; 	//Byte to OR with address for read start and read restart 
-const		uint8_t 	IIC_WRITE 		= 	0x00; 	//Byte to OR with address for write start and write restart 
+static const		uint8_t 	IIC_RWMASK 		= 	0x01; 	//Byte to AND with address for read/write bit 
+static const		uint8_t 	IIC_READ 		= 	0x01; 	//Byte to OR with address for read start and read restart 
+static const		uint8_t 	IIC_WRITE 		= 	0x00; 	//Byte to OR with address for write start and write restart 
 
 
 
@@ -116,6 +117,30 @@ uint8_t SoftIIC::MasterReadByte(uint8_t device_address, uint8_t register_address
   return RETVAL_SUCCESS;
 }
 
+uint16_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t* bytes){
+	return SoftIIC::MasterReadPage(device_address, register_address, number_bytes, 0, bytes);
+}
+
+uint16_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t isverify, uint8_t* bytes){
+	uint8_t tretval;
+	uint16_t k=0;
+	tretval=SoftIIC::MasterStart((device_address<<1)| IIC_WRITE);  		if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
+	tretval=SoftIIC::MasterWrite(register_address);					  	if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
+	tretval=SoftIIC::MasterRestart((device_address<<1)| IIC_READ);  	if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
+	while( k<number_bytes-1){	
+		uint8_t tmp=SoftIIC::MasterRead(false);	
+	if(isverify) {if(tmp!=bytes[k]) {return RETVAL_PROTOCOL_FAILURE;}}
+	else {bytes[k]=tmp;}
+		k++;
+	}
+	bytes[k] = SoftIIC::MasterRead(true); 
+	SoftIIC::MasterStop();  
+	return RETVAL_SUCCESS;	
+}
+
+
+	
+	
 uint8_t SoftIIC::MasterWriteByte(uint8_t device_address, uint8_t register_address, uint8_t data){
 	return SoftIIC::MasterWriteByte(device_address, register_address, data, 0);
 }
@@ -145,49 +170,29 @@ uint8_t SoftIIC::MasterWriteByte(uint8_t device_address, uint8_t register_addres
   return RETVAL_SUCCESS;
 }
 
-
-uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes){
-	return SoftIIC::MasterReadPage(device_address, register_address, bytes, number_bytes, 0);
+// By default, do not do write verification
+uint16_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t* bytes){ 
+	return SoftIIC::MasterWritePage( device_address,  register_address, number_bytes, pagesize, 0,  bytes );
 }
 
-uint8_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t isverify){
-	uint8_t tretval;
-	uint16_t k=0;
-	tretval=SoftIIC::MasterStart((device_address<<1)| IIC_WRITE);  		if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
-	tretval=SoftIIC::MasterWrite(register_address);					  	if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
-	tretval=SoftIIC::MasterRestart((device_address<<1)| IIC_READ);  		if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
-	while( k<number_bytes-1){
-		uint8_t tmp=SoftIIC::MasterRead(false);
-	if(isverify) {if(tmp!=bytes[k]) {return RETVAL_PROTOCOL_FAILURE;}}
-	else {bytes[k]=tmp;}
-		k++;
-	}
-	bytes[k] = SoftIIC::MasterRead(true); 
-	SoftIIC::MasterStop();  
-	return RETVAL_SUCCESS;	
-}
 
-	uint8_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes){
-		return SoftIIC::MasterWritePage(device_address, register_address, bytes, number_bytes, 0);
-	}
-	
-uint8_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t writeverify ){
+uint16_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t writeverify, uint8_t* bytes ){	
 	uint16_t k=0;
+//	Serial.print(register_address); Serial.print("#"); Serial.println(number_bytes);
 	if ((SoftIIC::MasterStart((device_address<<1)| IIC_WRITE))) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
 	if (SoftIIC::MasterWrite(register_address)) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}	
 	while( k<number_bytes){
 		if (SoftIIC::MasterWrite(bytes[k])) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
 		k++;
-		Serial.print(".");
+//		Serial.print(".");
 	}
     SoftIIC::MasterStop();
 	if (writeverify == 0) {return RETVAL_SUCCESS;	}
 	delayMicroseconds(10000); // Typical write time for iic eeprom is 5ms.  Give the target chip some time to write the data.
-	return SoftIIC::MasterReadPage(device_address, register_address, bytes, number_bytes, 1);	
+	return SoftIIC::MasterReadPage(device_address, register_address, number_bytes, 1, bytes);	
 }
 
-
-	
+/*
 uint8_t SoftIIC::MasterDumpAll() {
 	Serial.println(F("IIC dump begin"));  Serial.flush();
 	uint8_t addressRW;
@@ -206,12 +211,41 @@ uint8_t SoftIIC::MasterDumpAll() {
 //	Serial.print(F("IIC dump complete, found ")); Serial.print(number_of_chips); Serial.println(F(" chips!"));  Serial.flush();
 	return number_of_chips;
 }
+*/
+	
+uint8_t SoftIIC::MasterDumpAll() {
+	Serial.println(F("IIC dump begin"));  Serial.flush();
+	const uint16_t DELAY_BETWEEN_ACTIONS=100;
+	uint8_t addressRW;
+	uint8_t number_of_chips;
+	number_of_chips=0;
+		uint8_t retval=0;
+	for (addressRW = 0x01; addressRW < 0x7F; addressRW++ )	{	
+		wdt_reset();
+		delay(DELAY_BETWEEN_ACTIONS); SoftIIC::MasterBusRestart(); delay(DELAY_BETWEEN_ACTIONS); 		
+		retval=SoftIIC::MasterCheckExists(addressRW<<1);  // Check 'write' address
+		if (retval == RETVAL_SUCCESS)    {
+				number_of_chips++;
+				Serial.print(F("Chip at 0x")); 	SoftIIC::fastprinthexbyte(addressRW<<1);	Serial.println(""); Serial.flush(); 	
+		}		
+		delay(DELAY_BETWEEN_ACTIONS); SoftIIC::MasterBusRestart(); delay(DELAY_BETWEEN_ACTIONS); 
+		retval=SoftIIC::MasterCheckExists((addressRW<<1)|IIC_READ);  // Check 'read' address		
+		if (retval == RETVAL_SUCCESS)    {
+				number_of_chips++;
+		delay(DELAY_BETWEEN_ACTIONS); SoftIIC::MasterBusRestart(); delay(DELAY_BETWEEN_ACTIONS); 
+				SoftIIC::MasterDumpRegisters(addressRW);
+		}
+	}
+	Serial.println(F("IIC dump done."));  Serial.flush();
+//	Serial.print(F("IIC dump complete, found ")); Serial.print(number_of_chips); Serial.println(F(" chips!"));  Serial.flush();
+	return number_of_chips;
+}
 
 uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {	
 	uint8_t number_of_registers=0;
 	uint16_t register_address;
 	uint8_t value;
-	Serial.print(F("DumpRegs 0x")); 	SoftIIC::fastprinthexbyte(addressRW);	Serial.print(":"); Serial.flush();
+	Serial.print(F("DumpRegs 0x")); 	SoftIIC::fastprinthexbyte(addressRW<<1);	Serial.print(":"); Serial.flush();
 	for (register_address = 0; register_address < CHIP_SIZE; register_address++ )      {
 		uint8_t readretval = SoftIIC::MasterReadByte(addressRW, register_address, &value);
 		if(readretval!=RETVAL_SUCCESS) {Serial.print(F("-- "));}
@@ -271,7 +305,6 @@ uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {
   return SoftIIC::MasterStart(addressRW);
 }
 
-
  void SoftIIC::MasterStop() {
 	SoftIIC::spin_until_half_clock_period();
 	SoftIIC::spin_until_half_clock_period();
@@ -292,9 +325,9 @@ uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {
 		if((value & m) == LOW){SoftIIC::data_pull_down();} else {SoftIIC::data_release();} 
 		SoftIIC::spin_until_half_clock_period();
 		SoftIIC::clock_release();
+		m=m>>1;
 		SoftIIC::spin_until_half_clock_period();
 		SoftIIC::clock_pull_down();
-		m=m>>1;
 	}
 		
 	SoftIIC::data_release(); 
@@ -313,9 +346,9 @@ uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {
 	uint8_t rtn;
 	uint8_t m=0b10000000;
 	while( m>0){
-		m=m>>1;
 		SoftIIC::spin_until_half_clock_period();
 		SoftIIC::clock_release();
+		m=m>>1;
 		SoftIIC::spin_until_half_clock_period();
 		rtn=SoftIIC::data_read(); value <<= 1; value=value+(rtn>0);
 		SoftIIC::clock_pull_down();
@@ -325,8 +358,9 @@ uint8_t SoftIIC::MasterDumpRegisters(uint8_t addressRW) {
   if((last) == true){SoftIIC::data_release();} else {SoftIIC::data_pull_down();} 
 	SoftIIC::spin_until_half_clock_period();
 	SoftIIC::clock_release();
-		SoftIIC::spin_until_half_clock_period();
-		SoftIIC::clock_pull_down();
+	SoftIIC::spin_until_half_clock_period();
+	SoftIIC::clock_pull_down();
+	SoftIIC::data_release();
 	return value;
 }
 
@@ -368,8 +402,6 @@ uint8_t SoftIIC::wait_until_bus_is_idle(){
 	}
   }
   	
-void SoftIIC::EnableMultiMasterSupport() {MULTIMASTERSUPPORT=1;}
-void SoftIIC::DisableMultiMasterSupport(){MULTIMASTERSUPPORT=0;}
   
 
   
@@ -918,33 +950,21 @@ spin_again_for_clock_fall:
 	
 	/////////////////////////////////////////		SUPPORTING FUNCTIONS
 	
-	
-	
-	
-	
-#ifdef SCL_PIN
-#ifdef SDA_PIN
-    SoftIIC::SoftIIC(){	SoftIIC::init(SCL_PIN, SDA_PIN, true, IIC_SPEED_DEFAULT, false);	}
-#endif
-#endif
-
-    SoftIIC::SoftIIC(uint8_t pin_scl, uint8_t pin_sda){		SoftIIC::init(pin_scl, pin_sda, true, IIC_SPEED_DEFAULT, false);	}
-	SoftIIC::SoftIIC(uint8_t pin_scl, uint8_t pin_sda, bool pullups){SoftIIC::init(pin_scl, pin_sda, pullups, IIC_SPEED_DEFAULT, false );	} 
-	SoftIIC::SoftIIC(uint8_t pin_scl, uint8_t pin_sda, bool pullups, uint16_t speed, bool timeout){ SoftIIC::init(pin_scl, pin_sda, pullups, speed, timeout);	}
-			
-    SoftIIC::~SoftIIC(){
-		// Restore pin settings
-		pinMode(PIN_SCL, INPUT);
-		pinMode(PIN_SDA, INPUT);
-	}
-	
-	
- void    SoftIIC::init(uint8_t pin_scl, uint8_t pin_sda, uint8_t pullups, uint16_t speed, bool timeout){
-		if(timeout==true) {SoftIIC::enable_timeout();} else {SoftIIC::disable_timeout();}
-		SoftIIC::DisableMultiMasterSupport();
-		usePullups=pullups;
-		PIN_SCL = pin_scl;
-		PIN_SDA = pin_sda;
+	SoftIIC::SoftIIC(uint8_t pin_scl, uint8_t pin_sda, uint16_t speed, bool pullups, bool multimastersupport, bool timeout)
+		:PIN_SCL				(pin_scl)						        
+		,PIN_SDA				(pin_sda)						        
+		,_sclBitMask			(digitalPinToBitMask(pin_scl))						
+		,_sclBitMaskINVERTED	(~(digitalPinToBitMask(pin_scl)))	
+		,_sclPortRegIN			(portInputRegister(digitalPinToPort(pin_scl)))	
+		,_sdaBitMask			(digitalPinToBitMask(pin_sda))						
+		,_sdaBitMaskINVERTED	(~(digitalPinToBitMask(pin_sda)))	
+		,_sdaPortRegIN 			(portInputRegister(digitalPinToPort(pin_sda)))		
+		,_busBitMask			(_sclBitMask|_sdaBitMask)					
+		,usePullups				(pullups)		                        
+		,MULTIMASTERSUPPORT		(multimastersupport)                    
+		,TimeoutsEnabled		(timeout)
+		,IIC_CLOCK_SPEED		(speed)
+	{
 	if(pullups==true){
 		pinMode(pin_scl, INPUT_PULLUP);
 		pinMode(pin_scl, INPUT_PULLUP);
@@ -952,38 +972,16 @@ spin_again_for_clock_fall:
 		pinMode(pin_scl, INPUT);
 		pinMode(pin_scl, INPUT);
 	}
-	
-		_sclBitMask = digitalPinToBitMask(pin_scl);  
-		_sclBitMaskINVERTED = ~_sclBitMask;  
-		_sclPortRegIN = portInputRegister(digitalPinToPort(pin_scl));		
-		_sclPortReg  = portOutputRegister(digitalPinToPort(pin_scl));
-		_sclDirReg   = portModeRegister(digitalPinToPort(pin_scl));   
-		_sdaBitMask = digitalPinToBitMask(pin_sda);      
-		_sdaBitMaskINVERTED = ~_sdaBitMask;   
-		_sdaPortRegIN = portInputRegister(digitalPinToPort(pin_sda));
-		_sdaPortReg  = portOutputRegister(digitalPinToPort(pin_sda));
-		_sdaDirReg   = portModeRegister(digitalPinToPort(pin_sda)); 
-		_busBitMask =_sclBitMask|_sdaBitMask;
+
+	_sclPortReg  	=	portOutputRegister(digitalPinToPort(pin_scl));
+	_sclDirReg   	=	portModeRegister(digitalPinToPort(pin_scl));
+	_sdaPortReg  	=	portOutputRegister(digitalPinToPort(pin_sda));
+	_sdaDirReg		=	portModeRegister(digitalPinToPort(pin_sda));		
 			
 		// Just don't deal with different ports, results WILL fail sometimes due to incorrect start/stop conditions.
 	if(_sclPortReg != _sdaPortReg){Serial.println(F("Warning: IIC port mismatch!")); while(1);}
 		
 		noInterrupts();		
-		
-		SoftIIC::SetSpeed(speed);	
-		
-		SoftIIC::clock_release();
-		SoftIIC::data_release();
-		
-		SoftIIC::InitDebugpins();
-		SoftIIC::debug_pin_test();
-		interrupts();
-	}
-
- 
-	
-	void SoftIIC::SetSpeed(uint16_t speed){	
-		IIC_CLOCK_SPEED=speed;	
 		
 		my_TCCR1B=0x00;
 		HalfclockTimeout=10000;
@@ -998,14 +996,33 @@ spin_again_for_clock_fall:
 		ByteAckTimeout=ByteTimeout+2*HalfclockTimeout*TIMEOUT_CLOCKS_SENDACK;
 		HalfclockTimeout=HalfclockTimeout-TIMER_OVERHEAD_COMPENASTION;
 				
+		
+		SoftIIC::clock_release();
+		SoftIIC::data_release();
+		
+		SoftIIC::InitDebugpins();
+		SoftIIC::debug_pin_test();
+		
 		my_TCCR1A= 0; // turn off PWM	
 		my_TCCR1B |= (1<<WGM12);  // Enables CTC mode with TOP set to OCR1A
 		my_OCR1A = 0;
 		my_OCR1B = 0; 
 		my_TIMSK1 = 0 ; 
-		my_TIFR1 = 0 ; 	
+		my_TIFR1 = 0 ; 			
 		
+		interrupts();
 	}
+			
+	
+	
+	
+    SoftIIC::~SoftIIC(){
+		// Restore pin settings
+		pinMode(PIN_SCL, INPUT);
+		pinMode(PIN_SDA, INPUT);
+	}
+	
+	
 	
 	void SoftIIC::PrintSpeed(){
 	#ifdef SOFTIIC_DEGBUG_MODE
@@ -1026,8 +1043,6 @@ spin_again_for_clock_fall:
 #endif			
 	}
 	
-void	SoftIIC::disable_timeout(){TimeoutsEnabled=0; }
-void	SoftIIC::enable_timeout(){TimeoutsEnabled=1; }
 	uint8_t	SoftIIC::are_timeouts_enabled(){		return TimeoutsEnabled;		}
 	
   void SoftIIC::TimerReset(){
