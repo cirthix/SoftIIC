@@ -26,19 +26,23 @@
 
 #ifndef SOFTIIC_h
 #define SOFTIIC_h
-
-#include <Arduino.h>
+ 
+ #include <Arduino.h>
 #include <inttypes.h>
-//#include <avr/wdt.h>
+#include <avr/wdt.h>
+ 
+// You can define this to gain a tiny bit of speed+space (may matter at 100KHz)
+//#define SOFTIIC_OPTIMIZE_NOPULLUPS
  
  // This is necessary for 100KHz host operation at less than 16MHz core clock
+//#define SOFTIIC_OPTIMIZE_FAST
+ 
 #ifdef SOFTIIC_OPTIMIZE_FAST
 	#pragma GCC optimize("O3") 
 #endif
  
  
-// You can define this to gain a tiny bit of speed+space (may matter at 100KHz)
-//#define SOFTIIC_OPTIMIZE_NOPULLUPS
+#define FORCE_INLINE __attribute__((always_inline)) inline
  
  
 // Define this if using the extra debug pins for timing debug/analysis
@@ -84,15 +88,9 @@ class SoftIIC
 {
   public:  
 	  
-						// Constructors
-#ifdef SCL_PIN
-#ifdef SDA_PIN
-SoftIIC();
-#endif
-#endif
-    SoftIIC(uint8_t pin_scl, uint8_t pin_sda);
-    SoftIIC(uint8_t pin_scl, uint8_t pin_sda, bool pullups);
-    SoftIIC(uint8_t pin_scl, uint8_t pin_sda, bool pullups, uint16_t speed, bool timeout);
+						// Constructor
+	  // note: speed is in KHz, ~10-100 is reasonable.    										
+    SoftIIC(uint8_t pin_scl, uint8_t pin_sda, uint16_t speed, bool pullups, bool multimastersupport, bool timeout);
 	~SoftIIC();
 	
 						// Higher level master functions
@@ -127,10 +125,10 @@ SoftIIC();
 	uint8_t MasterCheckExists(uint8_t device_address);
 	
 	// Master functions for doing multibyte transfers.  These should be significantly faster for doing things like programming an eeprom.
-	uint8_t MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes);
-	uint8_t MasterReadPage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t isverify);
-	uint8_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes);
-	uint8_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint8_t* bytes, uint16_t number_bytes, uint8_t writeverify );
+	uint16_t MasterReadPage (uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t* bytes);
+	uint16_t MasterReadPage (uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t isverify, uint8_t* bytes);
+	uint16_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t* bytes);
+	uint16_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t writeverify, uint8_t* bytes);
 	
 						// Lower level master functions do all of the legwork of handling the iic master protocol.  
  	uint8_t MasterBusRestart();
@@ -143,9 +141,6 @@ SoftIIC();
 	uint8_t wait_until_bus_is_idle();
 	
 	
- 	void EnableMultiMasterSupport();
- 	void DisableMultiMasterSupport();
-
 // Watches the I2c bus and prints transactions.  Never returns.  Useful for observing systems and testing the library.
 	// Returns: number of bytes snooped.
 	uint16_t Snoop(uint16_t to_snoop);
@@ -170,125 +165,127 @@ SoftIIC();
 				uint8_t (*fp_receive_byte)(uint8_t chip_address, uint8_t byte)
 	);
 
-									void	 		disable_timeout();
-									void	 		enable_timeout();
 									uint8_t	 		are_timeouts_enabled();
 									uint8_t			GetStateSoftIIC();
 	
 	
   private:  			
-									uint8_t			MULTIMASTERSUPPORT;
-			// Initialization functions
-									void 			init(uint8_t pin_scl, uint8_t pin_sda, uint8_t pullups, uint16_t speed, bool timeout);
-									void 			SetSpeed(uint16_t speed);  // note: speed is in KHz, ~10-100 is reasonable.  Sets the half clock period and timeout value
-    										
+	  
+			// Pin interactions and precomputed bitmasks
+		const uint8_t usePullups			;
+		const uint8_t MULTIMASTERSUPPORT	;
+		const uint8_t TimeoutsEnabled		;
+	  	const uint8_t PIN_SCL				;
+		const uint8_t PIN_SDA				;
+		const uint8_t _sclBitMask			;
+		const uint8_t _sclBitMaskINVERTED	;
+		const uint8_t _sdaBitMask			;
+		const uint8_t _sdaBitMaskINVERTED	;
+		const uint8_t _busBitMask			;
+		const volatile uint8_t* _sclPortRegIN			;
+		const volatile uint8_t* _sdaPortRegIN 		;
+		volatile uint8_t* _sclPortReg  			;
+		volatile uint8_t* _sclDirReg   			;
+		volatile uint8_t* _sdaPortReg  			;
+		volatile uint8_t* _sdaDirReg			;	
+	  
 			// IIC timing related functions/variables
-									uint16_t 		IIC_CLOCK_SPEED;				// Units are ticks of TCNT1
-									uint8_t 		TimeoutsEnabled;				// Units are ticks of TCNT1
-									uint16_t 		HalfclockTimeout;				// Units are ticks of TCNT1
-									uint16_t 		TransferTimeout;				// Units are ticks of TCNT1
-									uint16_t 		ByteTimeout;					// Units are ticks of TCNT1
-									uint16_t 		ByteAckTimeout;					// Units are ticks of TCNT1
-__attribute__((always_inline))		void 			spin_until_half_clock_period(); 
+		const	uint16_t 		IIC_CLOCK_SPEED;				// Units are ticks of TCNT1
+			uint16_t 		HalfclockTimeout;				// Units are ticks of TCNT1
+			uint16_t 		TransferTimeout;				// Units are ticks of TCNT1
+			uint16_t 		ByteTimeout;					// Units are ticks of TCNT1
+			uint16_t 		ByteAckTimeout;					// Units are ticks of TCNT1
+	  
+	  
+	  
+			// Initialization functions
+					void 			SetSpeed(uint16_t speed);  
+FORCE_INLINE		void 			spin_until_half_clock_period(); 
 
 			// IIC slave mode timing related functions/variables
-__attribute__((always_inline))		uint8_t 		spin_until_start();
-__attribute__((always_inline))		uint8_t			spin_until_clock_rises();
-__attribute__((always_inline))		uint8_t 		spin_until_clock_falls();
+FORCE_INLINE		uint8_t 		spin_until_start();
+FORCE_INLINE		uint8_t			spin_until_clock_rises();
+FORCE_INLINE		uint8_t 		spin_until_clock_falls();
 
 			
 			// IIC slave mode lower level functions
-__attribute__((always_inline))		void	 		wait_for_bus_activity();
-__attribute__((always_inline))		uint8_t 		set_next_bus_activity(uint8_t value);
-__attribute__((always_inline))		uint8_t 		get_byte(uint8_t* value);												//Note: does not handle ACK/NACK. 
-__attribute__((always_inline))		uint8_t 		get_byte(uint8_t* value, uint8_t (*my_ack_function)(uint8_t rxbyte));	//Note: handles ACK/NACK
-__attribute__((always_inline))		uint8_t 		set_byte(uint8_t value);
+FORCE_INLINE		void	 		wait_for_bus_activity();
+FORCE_INLINE		uint8_t 		set_next_bus_activity(uint8_t value);
+FORCE_INLINE		uint8_t 		get_byte(uint8_t* value);												//Note: does not handle ACK/NACK. 
+FORCE_INLINE		uint8_t 		get_byte(uint8_t* value, uint8_t (*my_ack_function)(uint8_t rxbyte));	//Note: handles ACK/NACK
+FORCE_INLINE		uint8_t 		set_byte(uint8_t value);
 									
 			// IIC state functions
-									uint8_t 		IIC_STATE; 
-									uint8_t 		IIC_STATE_PREVIOUS; 
-__attribute__((always_inline))		uint8_t 		StateIdle();
-__attribute__((always_inline))		uint8_t 		StateStart(); 
-__attribute__((always_inline))		uint8_t 		StateStop(); 
-__attribute__((always_inline))		uint8_t 		StateData();
-__attribute__((always_inline))		uint8_t 		StateClockFell();
-__attribute__((always_inline))		uint8_t 		StateDataBit(); 
-__attribute__((always_inline))		uint8_t 		StateClockLow(); 
-__attribute__((always_inline))		uint8_t 		StateClockHigh();
+					uint8_t 		IIC_STATE; 
+					uint8_t 		IIC_STATE_PREVIOUS; 
+FORCE_INLINE		uint8_t 		StateIdle();
+FORCE_INLINE		uint8_t 		StateStart(); 
+FORCE_INLINE		uint8_t 		StateStop(); 
+FORCE_INLINE		uint8_t 		StateData();
+FORCE_INLINE		uint8_t 		StateClockFell();
+FORCE_INLINE		uint8_t 		StateDataBit(); 
+FORCE_INLINE		uint8_t 		StateClockLow(); 
+FORCE_INLINE		uint8_t 		StateClockHigh();
 
 		
-			// Pin interactions and precomputed bitmasks
-									uint8_t 		PIN_SCL;
-									uint8_t 		PIN_SDA;
-									uint8_t 		usePullups;  
-__attribute__((always_inline))		void 			clock_pull_down();
-__attribute__((always_inline))		void 			data_pull_down();
-__attribute__((always_inline))		void 			clock_release();
-__attribute__((always_inline))		void 			data_release();
-__attribute__((always_inline))		uint8_t			clock_read();
-__attribute__((always_inline))		uint8_t			data_read();
-__attribute__((always_inline))		void 			bus_read();
-__attribute__((always_inline))		void 			bus_read_same_port();
-__attribute__((always_inline))		void 			bus_read_different_port();
-									uint8_t 		_sclBitMask;
-									uint8_t 		_sclBitMaskINVERTED;
-									uint8_t 		_sdaBitMask;
-									uint8_t 		_sdaBitMaskINVERTED;
-									uint8_t 		_busBitMask;					
-volatile							uint8_t* 		_sclPortRegIN;// These items are pointers to hardware which will definitely change state beyond the control of program flow (volatile)
-volatile							uint8_t* 		_sclPortReg;
-volatile							uint8_t* 		_sclDirReg;
-volatile							uint8_t* 		_sdaPortRegIN;
-volatile							uint8_t* 		_sdaPortReg;
-volatile							uint8_t* 		_sdaDirReg;
+FORCE_INLINE		void 			clock_pull_down();
+FORCE_INLINE		void 			data_pull_down();
+FORCE_INLINE		void 			clock_release();
+FORCE_INLINE		void 			data_release();
+FORCE_INLINE		uint8_t			clock_read();
+FORCE_INLINE		uint8_t			data_read();
+FORCE_INLINE		void 			bus_read();
+FORCE_INLINE		void 			bus_read_same_port();
+FORCE_INLINE		void 			bus_read_different_port();		
+// These items are pointers to hardware which will definitely change state beyond the control of program flow (volatile)
 			
 			// Timer interaction functions and saved previous state
-inline								void 			reset_timer();
-inline								void			RestoreTimer1Settings();
-inline								void			SaveTimer1Settings();
-inline								void			ConfigureTimer1Settings();
-__attribute__((always_inline))		uint16_t 		get_timer();
-__attribute__((always_inline))		void	 		TransferTimerConfigureTransfer();
-__attribute__((always_inline))		void	 		TransferTimerConfigureByte();
-__attribute__((always_inline))		void	 		TransferTimerConfigureByteWithAck();
-__attribute__((always_inline))		void	 		TransferTimerConfigureHalfclock();
-__attribute__((always_inline))		void	 		TimerReset();
-__attribute__((always_inline))		void	 		TimerClearMatch();
-__attribute__((always_inline))		uint8_t 		TimerElapsed();
-inline								uint8_t 		GetCurrentTimer1Divider();
-inline								uint16_t 		GetRatioOfTimer1Divider(uint8_t divider);
-inline								uint16_t 		GetFrequencyOfTimer1Divider(uint8_t divider);
-inline								uint8_t 		GetCurrentTimer2Divider();
-inline								uint16_t 		GetRatioOfTimer2Divider(uint8_t divider);
-inline								uint16_t 		GetFrequencyOfTimer2Divider(uint8_t divider);
-									uint8_t 		p_TCCR1A;
-									uint8_t 		p_TCCR1B;
-									uint8_t 		p_OCR1A;
-									uint8_t 		p_OCR1B;
-									uint8_t 		p_TIMSK1; 
-									uint8_t 		p_TIFR1;   
-									uint8_t 		my_TCCR1A;
-									uint8_t 		my_TCCR1B;
-									uint8_t 		my_OCR1A;
-									uint8_t 		my_OCR1B;
-									uint8_t 		my_TIMSK1; 
-									uint8_t 		my_TIFR1;   
-									uint8_t 		timer_is_configured;   
-									
-									// Debugging functions+state
-									uint8_t 		DEBUG_PIN_A_STATE;
-									uint8_t 		DEBUG_PIN_B_STATE;
-									void			InitDebugpins();
-__attribute__((always_inline))		void			debug_pin_A_test();
-__attribute__((always_inline))		void			debug_pin_B_test();
-__attribute__((always_inline))		void 			debug_pin_A_low();
-__attribute__((always_inline))		void 			debug_pin_B_low();
-__attribute__((always_inline))		void 			debug_pin_A_high();
-__attribute__((always_inline))		void 			debug_pin_B_high();
-__attribute__((always_inline))		void 			debug_pin_A_toggle();
-__attribute__((always_inline))		void 			debug_pin_B_toggle();
-__attribute__((always_inline))		void 			fastprinthexbyte(uint8_t hexbyte);	
-__attribute__((always_inline))		void			functimer_start();
-__attribute__((always_inline))		void			functimer_stop();
+inline				void 			reset_timer();
+inline				void			RestoreTimer1Settings();
+inline				void			SaveTimer1Settings();
+inline				void			ConfigureTimer1Settings();
+FORCE_INLINE		uint16_t 		get_timer();
+FORCE_INLINE		void	 		TransferTimerConfigureTransfer();
+FORCE_INLINE		void	 		TransferTimerConfigureByte();
+FORCE_INLINE		void	 		TransferTimerConfigureByteWithAck();
+FORCE_INLINE		void	 		TransferTimerConfigureHalfclock();
+FORCE_INLINE		void	 		TimerReset();
+FORCE_INLINE		void	 		TimerClearMatch();
+FORCE_INLINE		uint8_t 		TimerElapsed();
+inline				uint8_t 		GetCurrentTimer1Divider();
+inline				uint16_t 		GetRatioOfTimer1Divider(uint8_t divider);
+inline				uint16_t 		GetFrequencyOfTimer1Divider(uint8_t divider);
+inline				uint8_t 		GetCurrentTimer2Divider();
+inline				uint16_t 		GetRatioOfTimer2Divider(uint8_t divider);
+inline				uint16_t 		GetFrequencyOfTimer2Divider(uint8_t divider);
+					uint8_t 		p_TCCR1A;
+					uint8_t 		p_TCCR1B;
+					uint8_t 		p_OCR1A;
+					uint8_t 		p_OCR1B;
+					uint8_t 		p_TIMSK1; 
+					uint8_t 		p_TIFR1;   
+					uint8_t 		my_TCCR1A;
+					uint8_t 		my_TCCR1B;
+					uint8_t 		my_OCR1A;
+					uint8_t 		my_OCR1B;
+					uint8_t 		my_TIMSK1; 
+					uint8_t 		my_TIFR1;   
+					uint8_t 		timer_is_configured;   
+					
+					// Debugging functions+state
+					uint8_t 		DEBUG_PIN_A_STATE;
+					uint8_t 		DEBUG_PIN_B_STATE;
+					void			InitDebugpins();
+FORCE_INLINE		void			debug_pin_A_test();
+FORCE_INLINE		void			debug_pin_B_test();
+FORCE_INLINE		void 			debug_pin_A_low();
+FORCE_INLINE		void 			debug_pin_B_low();
+FORCE_INLINE		void 			debug_pin_A_high();
+FORCE_INLINE		void 			debug_pin_B_high();
+FORCE_INLINE		void 			debug_pin_A_toggle();
+FORCE_INLINE		void 			debug_pin_B_toggle();
+FORCE_INLINE		void 			fastprinthexbyte(uint8_t hexbyte);	
+FORCE_INLINE		void			functimer_start();
+FORCE_INLINE		void			functimer_stop();
 };
 #endif
