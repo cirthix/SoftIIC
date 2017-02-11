@@ -124,22 +124,22 @@ uint16_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_addres
 uint16_t SoftIIC::MasterReadPage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t isverify, uint8_t* bytes){
 	uint8_t tretval;
 	uint16_t k=0;
+	uint8_t tmp;
 	tretval=SoftIIC::MasterStart((device_address<<1)| IIC_WRITE);  		if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
 	tretval=SoftIIC::MasterWrite(register_address);					  	if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
 	tretval=SoftIIC::MasterRestart((device_address<<1)| IIC_READ);  	if (tretval != RETVAL_SUCCESS) {  SoftIIC::MasterStop(); return tretval;}
-	while( k<number_bytes-1){	
-		uint8_t tmp=SoftIIC::MasterRead(false);	
-	if(isverify) {if(tmp!=bytes[k]) {return RETVAL_PROTOCOL_FAILURE;}}
-	else {bytes[k]=tmp;}
+	while( k<number_bytes){	
+	    tmp=SoftIIC::MasterRead(k==number_bytes-1); // NACK the last transaction to indicate end of sequence	
+	    if(isverify) {
+			if(tmp!=bytes[k]) {SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
+			}
+	    else {bytes[k]=tmp;}
 		k++;
 	}
-	bytes[k] = SoftIIC::MasterRead(true); 
 	SoftIIC::MasterStop();  
 	return RETVAL_SUCCESS;	
 }
 
-
-	
 	
 uint8_t SoftIIC::MasterWriteByte(uint8_t device_address, uint8_t register_address, uint8_t data){
 	return SoftIIC::MasterWriteByte(device_address, register_address, data, 0);
@@ -171,24 +171,25 @@ uint8_t SoftIIC::MasterWriteByte(uint8_t device_address, uint8_t register_addres
 }
 
 // By default, do not do write verification
-uint16_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t* bytes){ 
-	return SoftIIC::MasterWritePage( device_address,  register_address, number_bytes, pagesize, 0,  bytes );
+uint16_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t* bytes){ 
+	return SoftIIC::MasterWritePage( device_address,  register_address, number_bytes, 0,  bytes );
 }
 
 
-uint16_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t writeverify, uint8_t* bytes ){	
+uint16_t SoftIIC::MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t writeverify, uint8_t* bytes ){	
+    uint16_t retval;
 	uint16_t k=0;
-//	Serial.print(register_address); Serial.print("#"); Serial.println(number_bytes);
 	if ((SoftIIC::MasterStart((device_address<<1)| IIC_WRITE))) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
-	if (SoftIIC::MasterWrite(register_address)) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}	
+	if (SoftIIC::MasterWrite(register_address)) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
+	
 	while( k<number_bytes){
-		if (SoftIIC::MasterWrite(bytes[k])) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
+	if (SoftIIC::MasterWrite(bytes[k])) {  SoftIIC::MasterStop(); return RETVAL_PROTOCOL_FAILURE;}
 		k++;
 //		Serial.print(".");
-	}
-    SoftIIC::MasterStop();
+	}		
+    SoftIIC::MasterStop(); 
 	if (writeverify == 0) {return RETVAL_SUCCESS;	}
-	delayMicroseconds(10000); // Typical write time for iic eeprom is 5ms.  Give the target chip some time to write the data.
+	delayMicroseconds(10000); // Typical write time for iic eeprom is 5ms.  Give the target chip some time to write the data.	
 	return SoftIIC::MasterReadPage(device_address, register_address, number_bytes, 1, bytes);	
 }
 
