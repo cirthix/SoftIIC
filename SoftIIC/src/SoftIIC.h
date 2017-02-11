@@ -127,8 +127,8 @@ class SoftIIC
 	// Master functions for doing multibyte transfers.  These should be significantly faster for doing things like programming an eeprom.
 	uint16_t MasterReadPage (uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t* bytes);
 	uint16_t MasterReadPage (uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t isverify, uint8_t* bytes);
-	uint16_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t* bytes);
-	uint16_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint16_t pagesize, uint8_t writeverify, uint8_t* bytes);
+	uint16_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t* bytes);
+	uint16_t MasterWritePage(uint8_t device_address, uint8_t register_address, uint16_t number_bytes, uint8_t writeverify, uint8_t* bytes);
 	
 						// Lower level master functions do all of the legwork of handling the iic master protocol.  
  	uint8_t MasterBusRestart();
